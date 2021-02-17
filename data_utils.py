@@ -3,7 +3,7 @@ import gc
 import re
 import pandas
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, exc
 
 
 def store_in_sqlite(path: str, match: re.Pattern = None):
@@ -59,8 +59,8 @@ def store_in_sqlite(path: str, match: re.Pattern = None):
             try:
                 df.to_sql(table_name, engine)
                 db_created = True
-            except ValueError as e:
-                print(e)
+            except (ValueError, exc.InterfaceError) as e:
+                print(os.path.join(table['cur_path'], table['file']), e)
     engine.dispose()
     del df
     gc.collect()
