@@ -24,6 +24,11 @@ def store_in_sqlite(path: str, match: re.Pattern = None):
     :return: str or None
         full path of resulting database if created
     """
+    if not os.path.isdir(path):
+        raise NotADirectoryError("Path doesn't exist")
+    if not isinstance(match, type(None)) and not isinstance(match, type(re.Pattern)):
+        raise TypeError('2nd parameter is not a re.Pattern neither a None')
+
     extensions = {'.csv': 'read_csv',
                   '.xlsx': 'read_excel',
                   '.parquet': 'read_parquet',
@@ -51,8 +56,11 @@ def store_in_sqlite(path: str, match: re.Pattern = None):
         table_name = '"' + table_name + '"'
         df = table['func'](os.path.join(table['cur_path'], table['file']))
         if not df.empty:
-            df.to_sql(table_name, engine)
-            db_created = True
+            try:
+                df.to_sql(table_name, engine)
+                db_created = True
+            except ValueError as e:
+                print(e)
     engine.dispose()
     del df
     gc.collect()
