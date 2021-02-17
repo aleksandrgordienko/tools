@@ -1,4 +1,5 @@
 import os
+import gc
 import re
 import pandas
 
@@ -35,22 +36,28 @@ def store_in_sqlite(path: str, match: re.Pattern = None):
                 if file.endswith(ext):
                     if match is None or match.fullmatch(file):
                         func = getattr(pandas, extensions[ext])
-                        df = func(os.path.join(cur_path, file))
-                        if not df.empty:
-                            tables.append([file, "".join(cur_path.split(path)[1:]), df])
+                        tables.append({'file': file, 'cur_path': cur_path, 'func': func})
                     break
 
     db_path = os.path.join(path, 'db.sqlite')
     engine = create_engine('sqlite:///' + db_path)
+    db_created = False
 
     for table in tables:
-        if len([val for val in tables if val[0] == table[0]]) > 1:
-            table_name = table[0] + table[1]
+        if len([val for val in tables if val['file'] == table['file']]) > 1:
+            table_name = table['file'] + "".join(table['cur_path'].split(path)[1:])
         else:
-            table_name = table[0]
+            table_name = table['file']
         table_name = '"' + table_name + '"'
-        table[2].to_sql(table_name, engine)
-    if len(tables) > 0:
+        df = table['func'](os.path.join(table['cur_path'], table['file']))
+        if not df.empty:
+            df.to_sql(table_name, engine)
+            db_created = True
+    engine.dispose()
+    del df
+    gc.collect()
+
+    if db_created:
         return db_path
     else:
         return None
